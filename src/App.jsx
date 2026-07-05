@@ -34,6 +34,7 @@ function App() {
   const [uploadMode, setUploadMode] = useState('link');
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploading, setUploading] = useState(false);
+  const [editingGame, setEditingGame] = useState(null); // edit mode
   const [category, setCategory] = useState('Football ⚽');
   const [games, setGames] = useState([]);
   const [news, setNews] = useState([]);
@@ -118,7 +119,18 @@ function App() {
       catch { alert('❌ መሰረዝ አልተቻለም!'); }
     }
   };
-
+const handleEditGame = async (e) => {
+  e.preventDefault();
+  try {
+    await axios.put(`${API_URL}/${editingGame.id}`, {
+      title, description, size, downloadLink, category
+    }, { headers: { Authorization: `Bearer ${token}` } });
+    alert('✅ ጌሙ ተስተካክሏል!');
+    setEditingGame(null);
+    setTitle(''); setDescription(''); setSize(''); setDownloadLink('');
+    fetchGames();
+  } catch { alert('❌ ማስተካከል አልተቻለም!'); }
+};
   const handleSubmitNews = async (e) => {
     e.preventDefault();
     try {
