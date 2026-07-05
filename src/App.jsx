@@ -105,7 +105,15 @@ function App() {
       fetchGames();
     } catch (err) { alert(err.response?.data?.message || '❌ ጌሙ አልተጫነም!'); }
   };
+const handleView = async (id) => {
+  if (id.startsWith('s')) return; // static games skip
+  try { await axios.post(`${API_URL}/${id}/view`); } catch (e) {}
+};
 
+const handleDownload = async (id) => {
+  if (id.startsWith('s')) return;
+  try { await axios.post(`${API_URL}/${id}/download`); } catch (e) {}
+};
   const handleDeleteGame = async (id) => {
     if (window.confirm('እርግጠኛ ነህ?')) {
       try { await axios.delete(`${API_URL}/${id}`, authHeaders); fetchGames(); }
@@ -201,17 +209,26 @@ function App() {
                       ? <img src={game.imageUrl} alt={game.title} className="game-image" onError={(e) => { e.target.style.display = 'none'; }} />
                       : <div className="game-image-placeholder">🎮</div>
                     }
+                    <div key={game.id} className="game-card"
+     onMouseEnter={() => handleView(game.id)}>
                     <span className="game-category">{game.category}</span>
                     <h3>{game.title}</h3>
                     <p>{game.description}</p>
                     {game.size && <p className="game-size">💾 {game.size}</p>}
-                    <a href={game.downloadLink} target="_blank" rel="noreferrer">
-                      <button className="download-btn">⬇️ Download</button>
-                    </a>
+                    {!game.id.startsWith('s') && (
+  <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', margin: '6px 0', fontSize: '12px', color: '#64748b' }}>
+    <span>👁️ {game.views || 0}</span>
+    <span>⬇️ {game.downloads || 0}</span>
+  </div>
+)}
+                    <a href={game.downloadLink} target="_blank" rel="noreferrer"
+   onClick={() => handleDownload(game.id)}>
+  <button className="download-btn">⬇️ Download</button>
+</a>
                   </div>
                 ))}
               </div>
-            )}
+            
           </div>
 
           <div id="news-section" className="news">
