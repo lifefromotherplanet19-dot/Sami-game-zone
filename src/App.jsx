@@ -4,8 +4,7 @@ import './App.css';
 
 const BASE_URL = window.location.hostname === 'localhost'
   ? 'http://localhost:5000'
-  : 'https://samigamestor.com';
-
+  : 'https://samigamezone-backend-2.onrender.com';
 const API_URL = `${BASE_URL}/api/games`;
 const AUTH_URL = `${BASE_URL}/api/auth`;
 const NEWS_URL = `${BASE_URL}/api/news`;
@@ -35,6 +34,8 @@ function App() {
   const [news, setNews] = useState([]);
   const [newsTitle, setNewsTitle] = useState('');
   const [newsContent, setNewsContent] = useState('');
+  const [newsImageFile, setNewsImageFile] = useState(null);
+  const [newsImagePreview, setNewsImagePreview] = useState('');
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
@@ -115,9 +116,16 @@ function App() {
   const handleSubmitNews = async (e) => {
     e.preventDefault();
     try {
-      await axios.post(NEWS_URL, { title: newsTitle, content: newsContent }, authHeaders);
+      const formData = new FormData();
+      formData.append('title', newsTitle);
+      formData.append('content', newsContent);
+      if (newsImageFile) formData.append('image', newsImageFile);
+      await axios.post(NEWS_URL, formData, {
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
+      });
       alert('📰 ዜና ተጨምሯል!');
       setNewsTitle(''); setNewsContent('');
+      setNewsImageFile(null); setNewsImagePreview('');
       fetchNews();
     } catch (err) { alert('❌ ዜና አልተጨመረም!'); }
   };
@@ -159,13 +167,11 @@ function App() {
             <h1>Welcome to Sami Game Zone</h1>
             <p>Download the latest Android, PC and Console games. Get gaming news, eFootball updates and more.</p>
             <div style={{ marginTop: '35px', display: 'flex', justifyContent: 'center', gap: '15px', flexWrap: 'wrap', position: 'relative', zIndex: 1 }}>
-              <button
-                onClick={() => document.getElementById('games-section').scrollIntoView({ behavior: 'smooth' })}
+              <button onClick={() => document.getElementById('games-section').scrollIntoView({ behavior: 'smooth' })}
                 style={{ background: 'linear-gradient(135deg, #1d4ed8, #2563eb)', color: 'white', border: 'none', padding: '14px 30px', borderRadius: '12px', fontSize: '16px', cursor: 'pointer', fontWeight: '600', boxShadow: '0 4px 20px rgba(37,99,235,0.4)' }}>
                 Download Games
               </button>
-              <button
-                onClick={() => document.getElementById('news-section').scrollIntoView({ behavior: 'smooth' })}
+              <button onClick={() => document.getElementById('news-section').scrollIntoView({ behavior: 'smooth' })}
                 style={{ background: 'linear-gradient(135deg, #0369a1, #0284c7)', color: 'white', border: 'none', padding: '14px 30px', borderRadius: '12px', fontSize: '16px', cursor: 'pointer', fontWeight: '600', boxShadow: '0 4px 20px rgba(3,105,161,0.4)' }}>
                 Latest News
               </button>
@@ -212,6 +218,11 @@ function App() {
             <h2>Latest Gaming News</h2>
             {news.length > 0 ? news.map((n) => (
               <div key={n.id} className="news-card">
+                {n.imageUrl && (
+                  <img src={n.imageUrl} alt={n.title}
+                    style={{ width: '100%', height: '200px', objectFit: 'cover', borderRadius: '10px', marginBottom: '14px' }}
+                    onError={(e) => e.target.style.display = 'none'} />
+                )}
                 <h3>{n.title}</h3>
                 <p>{n.content}</p>
                 <span style={{ fontSize: '12px', color: '#64748b' }}>{new Date(n.createdAt).toLocaleDateString()}</span>
@@ -250,7 +261,9 @@ function App() {
             <h2 style={{ color: '#22c55e', margin: 0 }}>👑 Control Dashboard</h2>
             <button onClick={handleLogout} style={{ backgroundColor: '#ef4444', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>Sign Out</button>
           </div>
+
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '25px', marginBottom: '25px' }}>
+            {/* ADD GAME */}
             <div style={{ backgroundColor: '#0b1329', padding: '25px', borderRadius: '16px', border: '1px solid #1e293b' }}>
               <h3 style={{ marginTop: 0, color: '#38bdf8' }}>🚀 Deploy New Game</h3>
               <form onSubmit={handleSubmitGame}>
@@ -284,6 +297,8 @@ function App() {
                 <button type="submit" style={{ width: '100%', padding: '12px', backgroundColor: '#22c55e', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>Publish Live 🚀</button>
               </form>
             </div>
+
+            {/* MANAGE GAMES */}
             <div style={{ backgroundColor: '#0b1329', padding: '25px', borderRadius: '16px', border: '1px solid #1e293b' }}>
               <h3 style={{ marginTop: 0, color: '#ef4444' }}>🗑️ Manage Games ({games.length})</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '400px', overflowY: 'auto' }}>
@@ -303,6 +318,8 @@ function App() {
               </div>
             </div>
           </div>
+
+          {/* NEWS MANAGEMENT */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '25px' }}>
             <div style={{ backgroundColor: '#0b1329', padding: '25px', borderRadius: '16px', border: '1px solid #1e293b' }}>
               <h3 style={{ marginTop: 0, color: '#f59e0b' }}>📰 Add News</h3>
@@ -312,20 +329,32 @@ function App() {
                   <input type="text" value={newsTitle} onChange={(e) => setNewsTitle(e.target.value)} required
                     style={{ width: '100%', padding: '10px', boxSizing: 'border-box', backgroundColor: '#111b35', color: 'white', border: '1px solid #1e293b', borderRadius: '8px' }} />
                 </div>
-                <div style={{ marginBottom: '16px' }}>
+                <div style={{ marginBottom: '12px' }}>
                   <label style={{ display: 'block', marginBottom: '6px', color: '#94a3b8', fontSize: '13px' }}>Content:</label>
                   <textarea value={newsContent} onChange={(e) => setNewsContent(e.target.value)} required
-                    style={{ width: '100%', padding: '10px', boxSizing: 'border-box', backgroundColor: '#111b35', color: 'white', border: '1px solid #1e293b', borderRadius: '8px', height: '80px', resize: 'none' }} />
+                    style={{ width: '100%', padding: '10px', boxSizing: 'border-box', backgroundColor: '#111b35', color: 'white', border: '1px solid #1e293b', borderRadius: '8px', height: '70px', resize: 'none' }} />
+                </div>
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', marginBottom: '6px', color: '#94a3b8', fontSize: '13px' }}>News Image (optional):</label>
+                  <input type="file" accept="image/*" onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (file) { setNewsImageFile(file); setNewsImagePreview(URL.createObjectURL(file)); }
+                  }} style={{ width: '100%', padding: '10px', boxSizing: 'border-box', backgroundColor: '#111b35', color: 'white', border: '1px solid #1e293b', borderRadius: '8px' }} />
+                  {newsImagePreview && <img src={newsImagePreview} alt="preview" style={{ width: '100%', height: '100px', objectFit: 'cover', borderRadius: '8px', marginTop: '8px' }} />}
                 </div>
                 <button type="submit" style={{ width: '100%', padding: '12px', backgroundColor: '#f59e0b', color: '#070d19', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>Publish News 📰</button>
               </form>
             </div>
+
             <div style={{ backgroundColor: '#0b1329', padding: '25px', borderRadius: '16px', border: '1px solid #1e293b' }}>
               <h3 style={{ marginTop: 0, color: '#f59e0b' }}>📋 Manage News ({news.length})</h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '200px', overflowY: 'auto' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '300px', overflowY: 'auto' }}>
                 {news.map((n) => (
-                  <div key={n.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#111b35', padding: '10px', borderRadius: '8px', border: '1px solid #1e293b' }}>
-                    <span style={{ fontSize: '13px', color: '#fff' }}>{n.title}</span>
+                  <div key={n.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#111b35', padding: '10px', borderRadius: '8px', border: '1px solid #1e293b', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {n.imageUrl && <img src={n.imageUrl} alt={n.title} style={{ width: '40px', height: '40px', borderRadius: '6px', objectFit: 'cover' }} onError={(e) => e.target.style.display = 'none'} />}
+                      <span style={{ fontSize: '13px', color: '#fff' }}>{n.title}</span>
+                    </div>
                     <button onClick={() => handleDeleteNews(n.id)} style={{ backgroundColor: 'rgba(239,68,68,0.1)', border: '1px solid #ef4444', color: '#ef4444', padding: '5px 10px', borderRadius: '6px', cursor: 'pointer' }}>❌</button>
                   </div>
                 ))}
@@ -348,7 +377,8 @@ function App() {
             <span style={{ fontSize: '24px' }}>📞</span>
             <div><h4 style={{ margin: 0 }}>Phone</h4><p style={{ color: '#94a3b8', margin: 0, fontSize: '13px' }}>0905330873</p></div>
           </a>
-          <button onClick={() => setPage('home')} style={{ display: 'block', margin: '30px auto 0 auto', background: 'transparent', border: 'none', color: '#38bdf8', fontWeight: 'bold', cursor: 'pointer' }}>← Return to Homepage</button>
+          <button onClick={() => setPage('home')} style={{ display: 'block', margin: '30px auto 0 auto', background: 'transparent', border: 'none', color: '#38bdf8', fontWeight: 'bold', cursor: 'pointer' }}
+        >← Return to Homepage</button>
         </div>
       )}
 

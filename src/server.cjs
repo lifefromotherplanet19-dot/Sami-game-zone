@@ -7,141 +7,64 @@ const jwt = require('jsonwebtoken');
 const multer = require('multer');
 
 const app = express();
-app.use(cors());
+
+app.use(cors({
+  origin: ['https://sami-game-zone.vercel.app','http://localhost:5173','http://localhost:5174'],
+  methods: ['GET','POST','DELETE','OPTIONS'],
+  allowedHeaders: ['Content-Type','Authorization']
+}));
+
 app.use(express.json());
 
-// ================= 📁 STATIC FILES =================
+const SERVER_URL = process.env.SERVER_URL || 'https://samigamezone-backend-2.onrender.com';
+const PORT = process.env.PORT || 5000;
+const JWT_SECRET = process.env.JWT_SECRET || 'sami_game_zone_2026';
+
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
-if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR);
-app.use('/uploads', express.static(UPLOADS_DIR));
-
-// ================= 📤 MULTER SETUP =================
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, UPLOADS_DIR),
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    cb(null, `${Date.now()}${ext}`);
-  }
-});
-const upload = multer({
-  storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max
-  fileFilter: (req, file, cb) => {
-    const allowed = /jpeg|jpg|png|webp|gif/;
-    const ext = allowed.test(path.extname(file.originalname).toLowerCase());
-    const mime = allowed.test(file.mimetype);
-    if (ext && mime) cb(null, true);
-    else cb(new Error('Images only!'));
-  }
-});
-
-// ================= 🔑 SECRET =================
-const JWT_SECRET = 'sami_game_zone_2026';
-
-// ================= 📁 DATABASE =================
+const FILES_DIR = path.join(__dirname, 'gamefiles');
 const DB_DIR = path.join(__dirname, 'database');
-const GAMES_FILE = path.join(DB_DIR, 'games.json');
-const USERS_FILE = path.join(DB_DIR, 'users.json');
-const NEWS_FILE = path.join(DB_DIR, 'news.json');
 
-if (!fs.existsSync(DB_DIR)) fs.mkdirSync(DB_DIR);
-if (!fs.existsSync(GAMES_FILE)) fs.writeFileSync(GAMES_FILE, '[]');
-if (!fs.existsSync(NEWS_FILE)) fs.writeFileSync(NEWS_FILE, '[]');
-if (!fs.existsSync(USERS_FILE)) {
-  const hash = bcrypt.hashSync('admin123', 10);
-  fs.writeFileSync(USERS_FILE, JSON.stringify([{ id: 1, email: 'admin', password: hash }], null, 2));
-}
+[UPLOADS_DIR, FILES_DIR, DB_DIR].forEach(d => { if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true }); });
 
-const readGames = () => JSON.parse(fs.readFileSync(GAMES_FILE, 'utf8'));
-const writeGames = (d) => fs.writeFileSync(GAMES_FILE, JSON.stringify(d, null, 2));
-const readUsers = () => JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
-const readNews = () => JSON.parse(fs.readFileSync(NEWS_FILE, 'utf8'));
-const writeNews = (d) => fs.writeFileSync(NEWS_FILE, JSON.stringify(d, null, 2));
+app.use('/uploads', express.static(UPLOADS_DIR));
+app.use('/gamefiles', express.static(FILES_DIR));
 
-// ================= 🛡️ AUTH MIDDLEWARE =================
-const auth = (req, res, next) => {
-  const token = req.headers['authorization']?.split(' ')[1];
-  if (!token) return res.status(401).json({ message: '❌ Token required!' });
-  try {
-    req.user = jwt.verify(token, JWT_SECRET);
-    next();
-  } catch {
-    res.status(403).json({ message: '❌ Invalid token!' });
-  }
-};
+const imageUpload = multer({ storage: multer.diskStorage({ destination: (r,f,cb) => cb(null,UPLOADS_DIR), filename: (r,f,cb) => cb(null,`${Date.now()}${path.extname(f.originalname)}`) }), limits: { fileSize: 10*1024*1024 } });
 
-// ================= 🎮 GAMES API =================
-app.get('/api/games', (req, res) => res.json(readGames()));
+const mixedUpload = multer({ storage: multer.diskStorage({ destination: (r,f,cb) => cb(null, f.fieldname==='image'?UPLOADS_DIR:FILES_DIR), filename: (r,f,cb) => { if(f.fieldname==='image') cb(null,`${Date.now()}${path.extname(f.originalname)}`); else cb(null,`${Date.now()}_${f.originalname.replace(/[^a-zA-Z0-9._-]/g,'_')}`); } }), limits: { fileSize: 500*1024*1024 } }).fields([{name:'image',maxCount:1},{name:'gamefile',maxCount:1}]);
 
-app.post('/api/games', auth, upload.single('image'), (req, res) => {
-  const games = readGames();
-  const imageUrl = req.file
-    ? `http://localhost:5000/uploads/${req.file.filename}`
-    : req.body.imageUrl || '';
-  const game = {
-    id: Date.now().toString(),
-    title: req.body.title,
-    description: req.body.description,
-    size: req.body.size || '',
-    downloadLink: req.body.downloadLink,
-    imageUrl,
-    category: req.body.category,
-    createdAt: new Date().toISOString()
-  };
-  games.push(game);
-  writeGames(games);
-  res.status(201).json({ message: '✅ Game added!', game });
-});
+const GAMES_FILE = path.join(DB_DIR,'games.json');
+const USERS_FILE = path.join(DB_DIR,'users.json');
+const NEWS_FILE = path.join(DB_DIR,'news.json');
 
-app.delete('/api/games/:id', auth, (req, res) => {
-  const games = readGames();
-  const game = games.find(g => g.id === req.params.id);
-  if (game?.imageUrl?.includes('/uploads/')) {
-    const filename = game.imageUrl.split('/uploads/')[1];
-    const filePath = path.join(UPLOADS_DIR, filename);
-    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-  }
-  writeGames(games.filter(g => g.id !== req.params.id));
-  res.json({ message: '✅ Deleted!' });
-});
+if (!fs.existsSync(GAMES_FILE)) fs.writeFileSync(GAMES_FILE,'[]');
+if (!fs.existsSync(NEWS_FILE)) fs.writeFileSync(NEWS_FILE,'[]');
+if (!fs.existsSync(USERS_FILE)) { const h=bcrypt.hashSync('admin123',10); fs.writeFileSync(USERS_FILE,JSON.stringify([{id:1,email:'admin',password:h}],null,2)); }
 
-// ================= 📰 NEWS API =================
-app.get('/api/news', (req, res) => res.json(readNews()));
+const readGames = () => JSON.parse(fs.readFileSync(GAMES_FILE,'utf8'));
+const writeGames = d => fs.writeFileSync(GAMES_FILE,JSON.stringify(d,null,2));
+const readUsers = () => JSON.parse(fs.readFileSync(USERS_FILE,'utf8'));
+const readNews = () => JSON.parse(fs.readFileSync(NEWS_FILE,'utf8'));
+const writeNews = d => fs.writeFileSync(NEWS_FILE,JSON.stringify(d,null,2));
 
-app.post('/api/news', auth, (req, res) => {
-  const news = readNews();
-  const item = {
-    id: Date.now().toString(),
-    title: req.body.title,
-    content: req.body.content,
-    createdAt: new Date().toISOString()
-  };
-  news.unshift(item);
-  writeNews(news);
-  res.status(201).json({ message: '✅ News added!', item });
-});
+const auth = (req,res,next) => { const t=req.headers['authorization']?.split(' ')[1]; if(!t) return res.status(401).json({message:'❌ Token required!'}); try{req.user=jwt.verify(t,JWT_SECRET);next();}catch{res.status(403).json({message:'❌ Invalid token!'});} };
 
-app.delete('/api/news/:id', auth, (req, res) => {
-  writeNews(readNews().filter(n => n.id !== req.params.id));
-  res.json({ message: '✅ News deleted!' });
-});
+app.get('/', (req,res) => res.json({status:'✅ Sami Game Zone API running!'}));
 
-// ================= 🔐 AUTH =================
-app.post('/api/auth/login', async (req, res) => {
-  const user = readUsers().find(u => u.email === req.body.email);
-  if (!user || !await bcrypt.compare(req.body.password, user.password)) {
-    return res.status(401).json({ message: '❌ Username ወይም Password ትክክል አይደለም!' });
-  }
-  const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '24h' });
-  res.json({ status: 'success', token });
-});
+app.get('/api/games', (req,res) => res.json(readGames()));
 
-app.post('/api/auth/register', (req, res) => {
-  res.status(403).json({ message: '❌ Registration disabled!' });
-});
+app.post('/api/games', auth, (req,res) => { mixedUpload(req,res,(err) => { if(err) return res.status(400).json({message:err.message}); const imageUrl=req.files?.image?`${SERVER_URL}/uploads/${req.files.image[0].filename}`:req.body.imageUrl||''; const gameFileUrl=req.files?.gamefile?`${SERVER_URL}/gamefiles/${req.files.gamefile[0].filename}`:''; const gameFileSize=req.files?.gamefile?`${(req.files.gamefile[0].size/(1024*1024)).toFixed(1)} MB`:req.body.size||''; const game={id:Date.now().toString(),title:req.body.title,description:req.body.description,size:gameFileSize,downloadLink:gameFileUrl||req.body.downloadLink||'',imageUrl,category:req.body.category,hasDirectFile:!!req.files?.gamefile,createdAt:new Date().toISOString()}; const games=readGames(); games.push(game); writeGames(games); res.status(201).json({message:'✅ Game added!',game}); }); });
 
-// ================= 🚀 START =================
-app.listen(5000, () => {
-  console.log('🚀 Sami Game Zone Server running on port 5000');
-  console.log('📁 Uploads:', UPLOADS_DIR);
-});
+app.delete('/api/games/:id', auth, (req,res) => { const games=readGames(); const g=games.find(x=>x.id===req.params.id); if(g?.imageUrl?.includes('/uploads/')) { const fp=path.join(UPLOADS_DIR,g.imageUrl.split('/uploads/')[1]); if(fs.existsSync(fp)) fs.unlinkSync(fp); } if(g?.downloadLink?.includes('/gamefiles/')) { const fp=path.join(FILES_DIR,g.downloadLink.split('/gamefiles/')[1]); if(fs.existsSync(fp)) fs.unlinkSync(fp); } writeGames(games.filter(x=>x.id!==req.params.id)); res.json({message:'✅ Deleted!'}); });
+
+app.get('/api/news', (req,res) => res.json(readNews()));
+
+app.post('/api/news', auth, imageUpload.single('image'), (req,res) => { const imageUrl=req.file?`${SERVER_URL}/uploads/${req.file.filename}`:''; const item={id:Date.now().toString(),title:req.body.title,content:req.body.content,imageUrl,createdAt:new Date().toISOString()}; const news=readNews(); news.unshift(item); writeNews(news); res.status(201).json({message:'✅ News added!',item}); });
+
+app.delete('/api/news/:id', auth, (req,res) => { const news=readNews(); const n=news.find(x=>x.id===req.params.id); if(n?.imageUrl?.includes('/uploads/')) { const fp=path.join(UPLOADS_DIR,n.imageUrl.split('/uploads/')[1]); if(fs.existsSync(fp)) fs.unlinkSync(fp); } writeNews(news.filter(x=>x.id!==req.params.id)); res.json({message:'✅ News deleted!'}); });
+
+app.post('/api/auth/login', async (req,res) => { const user=readUsers().find(u=>u.email===req.body.email); if(!user||!await bcrypt.compare(req.body.password,user.password)) return res.status(401).json({message:'❌ Username ወይም Password ትክክል አይደለም!'}); const token=jwt.sign({id:user.id,email:user.email},JWT_SECRET,{expiresIn:'24h'}); res.json({status:'success',token}); });
+
+app.post('/api/auth/register', (req,res) => res.status(403).json({message:'❌ Registration disabled!'}));
+
+app.listen(PORT, () => console.log(`🚀 Server on port ${PORT}`));
