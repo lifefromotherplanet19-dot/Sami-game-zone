@@ -34,7 +34,7 @@ function App() {
   const [uploadMode, setUploadMode] = useState('link');
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploading, setUploading] = useState(false);
-  const [editingGame, setEditingGame] = useState(null); // edit mode
+  const [editingGame, setEditingGame] = useState(null);
   const [category, setCategory] = useState('Football ⚽');
   const [games, setGames] = useState([]);
   const [news, setNews] = useState([]);
@@ -105,12 +105,40 @@ function App() {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' },
         onUploadProgress: (e) => setUploadProgress(Math.round((e.loaded*100)/e.total))
       });
-      alert('🎯 ጌሙ በተሳካ ሁኔታ ተጭኗል!');
+      alert('🎯 ጌሙ ተጭኗል!');
       setTitle(''); setDescription(''); setSize(''); setDownloadLink('');
       setImageFile(null); setImagePreview(''); setGameFile(null); setUploadProgress(0);
       fetchGames();
     } catch (err) { alert(err.response?.data?.message || '❌ ጌሙ አልተጫነም!'); }
     finally { setUploading(false); }
+  };
+
+  const handleEditGame = async (e) => {
+    e.preventDefault();
+    try {
+      await axios.put(`${API_URL}/${editingGame.id}`,
+        { title, description, size, downloadLink, category },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      alert('✅ ጌሙ ተስተካክሏል!');
+      setEditingGame(null);
+      setTitle(''); setDescription(''); setSize(''); setDownloadLink('');
+      fetchGames();
+    } catch { alert('❌ ማስተካከል አልተቻለም!'); }
+  };
+
+  const startEdit = (g) => {
+    setEditingGame(g);
+    setTitle(g.title);
+    setDescription(g.description);
+    setSize(g.size || '');
+    setDownloadLink(g.downloadLink || '');
+    setCategory(g.category);
+  };
+
+  const cancelEdit = () => {
+    setEditingGame(null);
+    setTitle(''); setDescription(''); setSize(''); setDownloadLink('');
   };
 
   const handleDeleteGame = async (id) => {
@@ -119,18 +147,7 @@ function App() {
       catch { alert('❌ መሰረዝ አልተቻለም!'); }
     }
   };
-const handleEditGame = async (e) => {
-  e.preventDefault();
-  try {
-    await axios.put(`${API_URL}/${editingGame.id}`, {
-      title, description, size, downloadLink, category
-    }, { headers: { Authorization: `Bearer ${token}` } });
-    alert('✅ ጌሙ ተስተካክሏል!');
-    setEditingGame(null);
-    setTitle(''); setDescription(''); setSize(''); setDownloadLink('');
-    fetchGames();
-  } catch { alert('❌ ማስተካከል አልተቻለም!'); }
-};
+
   const handleSubmitNews = async (e) => {
     e.preventDefault();
     try {
@@ -166,11 +183,11 @@ const handleEditGame = async (e) => {
       <div className="navbar">
         <h2 className="logo" onClick={() => setPage('home')} style={{ cursor: 'pointer' }}>🎮 Sami Game Zone</h2>
         <nav>
-          <a href="#home" onClick={() => setPage('home')} style={{ color: page === 'home' ? '#38bdf8' : 'white' }}>Home</a>
+          <a href="#home" onClick={() => setPage('home')} style={{ color: page==='home'?'#38bdf8':'white' }}>Home</a>
           <a href="#games-section" onClick={() => setPage('home')}>Games</a>
           <a href="#news-section" onClick={() => setPage('home')}>News</a>
-          <a href="#support" onClick={() => setPage('support')} style={{ color: page === 'support' ? '#38bdf8' : 'white' }}>Support</a>
-          {isAdmin && <a href="#dashboard" onClick={() => setPage('dashboard')} style={{ color: '#22c55e', fontWeight: 'bold' }}>👑 Dashboard</a>}
+          <a href="#support" onClick={() => setPage('support')} style={{ color: page==='support'?'#38bdf8':'white' }}>Support</a>
+          {isAdmin && <a href="#dashboard" onClick={() => setPage('dashboard')} style={{ color:'#22c55e', fontWeight:'bold' }}>👑 Dashboard</a>}
         </nav>
       </div>
 
@@ -179,15 +196,11 @@ const handleEditGame = async (e) => {
           <div className="hero">
             <h1>Welcome to Sami Game Zone</h1>
             <p>Download the latest Android, PC and Console games. Get gaming news, eFootball updates and more.</p>
-            <div style={{ marginTop: '35px', display: 'flex', justifyContent: 'center', gap: '15px', flexWrap: 'wrap', position: 'relative', zIndex: 1 }}>
-              <button onClick={() => document.getElementById('games-section').scrollIntoView({ behavior: 'smooth' })}
-                style={{ background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: 'white', border: 'none', padding: '14px 30px', borderRadius: '12px', fontSize: '16px', cursor: 'pointer', fontWeight: '600', boxShadow: '0 4px 20px rgba(37,99,235,0.4)' }}>
-                Download Games
-              </button>
-              <button onClick={() => document.getElementById('news-section').scrollIntoView({ behavior: 'smooth' })}
-                style={{ background: 'linear-gradient(135deg,#0369a1,#0284c7)', color: 'white', border: 'none', padding: '14px 30px', borderRadius: '12px', fontSize: '16px', cursor: 'pointer', fontWeight: '600', boxShadow: '0 4px 20px rgba(3,105,161,0.4)' }}>
-                Latest News
-              </button>
+            <div style={{ marginTop:'35px', display:'flex', justifyContent:'center', gap:'15px', flexWrap:'wrap', position:'relative', zIndex:1 }}>
+              <button onClick={() => document.getElementById('games-section').scrollIntoView({ behavior:'smooth' })}
+                style={{ background:'linear-gradient(135deg,#1d4ed8,#2563eb)', color:'white', border:'none', padding:'14px 30px', borderRadius:'12px', fontSize:'16px', cursor:'pointer', fontWeight:'600', boxShadow:'0 4px 20px rgba(37,99,235,0.4)' }}>Download Games</button>
+              <button onClick={() => document.getElementById('news-section').scrollIntoView({ behavior:'smooth' })}
+                style={{ background:'linear-gradient(135deg,#0369a1,#0284c7)', color:'white', border:'none', padding:'14px 30px', borderRadius:'12px', fontSize:'16px', cursor:'pointer', fontWeight:'600', boxShadow:'0 4px 20px rgba(3,105,161,0.4)' }}>Latest News</button>
             </div>
           </div>
 
@@ -204,7 +217,7 @@ const handleEditGame = async (e) => {
             {loading ? (
               <div className="spinner-container">
                 <div className="spinner"></div>
-                <p style={{ color: '#94a3b8', marginTop: '15px' }}>Loading games...</p>
+                <p style={{ color:'#94a3b8', marginTop:'15px' }}>Loading games...</p>
               </div>
             ) : (
               <div className="game-grid">
@@ -212,19 +225,18 @@ const handleEditGame = async (e) => {
                   <div key={game.id} className="game-card" onMouseEnter={() => handleView(game.id)}>
                     {game.imageUrl
                       ? <img src={game.imageUrl} alt={game.title} className="game-image" onError={(e) => { e.target.style.display='none'; }} />
-                      : <div className="game-image-placeholder">🎮</div>
-                    }
+                      : <div className="game-image-placeholder">🎮</div>}
                     <span className="game-category">{game.category}</span>
                     <h3>{game.title}</h3>
                     <p>{game.description}</p>
                     {game.size && <p className="game-size">💾 {game.size}</p>}
                     {game.views !== null && (
-                      <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', margin: '6px 0', fontSize: '12px', color: '#64748b' }}>
-                        <span>👁️ {game.views || 0} views</span>
-                        <span>⬇️ {game.downloads || 0} downloads</span>
+                      <div style={{ display:'flex', gap:'12px', justifyContent:'center', margin:'6px 0', fontSize:'12px', color:'#64748b' }}>
+                        <span>👁️ {game.views||0}</span>
+                        <span>⬇️ {game.downloads||0}</span>
                       </div>
                     )}
-                    {game.hasDirectFile && <p style={{ color: '#22c55e', fontSize: '12px', margin: '4px 0' }}>✅ Direct Download</p>}
+                    {game.hasDirectFile && <p style={{ color:'#22c55e', fontSize:'12px', margin:'4px 0' }}>✅ Direct Download</p>}
                     <a href={game.downloadLink} target="_blank" rel="noreferrer" onClick={() => handleDownloadCount(game.id)}>
                       <button className="download-btn">⬇️ Download</button>
                     </a>
@@ -273,18 +285,29 @@ const handleEditGame = async (e) => {
             <div>
               <h2 style={{ color:'#22c55e', margin:0 }}>👑 Control Dashboard</h2>
               <p style={{ margin:'5px 0 0 0', color:'#94a3b8', fontSize:'13px' }}>
-                Total Games: <span style={{ color:'#38bdf8' }}>{games.length}</span> &nbsp;|&nbsp;
-                Total Views: <span style={{ color:'#38bdf8' }}>{games.reduce((a,g)=>a+(g.views||0),0)}</span> &nbsp;|&nbsp;
-                Total Downloads: <span style={{ color:'#22c55e' }}>{games.reduce((a,g)=>a+(g.downloads||0),0)}</span>
+                Games: <span style={{ color:'#38bdf8' }}>{games.length}</span> &nbsp;|&nbsp;
+                Views: <span style={{ color:'#38bdf8' }}>{games.reduce((a,g)=>a+(g.views||0),0)}</span> &nbsp;|&nbsp;
+                Downloads: <span style={{ color:'#22c55e' }}>{games.reduce((a,g)=>a+(g.downloads||0),0)}</span>
               </p>
             </div>
             <button onClick={handleLogout} style={{ backgroundColor:'#ef4444', color:'white', border:'none', padding:'10px 20px', borderRadius:'8px', cursor:'pointer', fontWeight:'bold' }}>Sign Out</button>
           </div>
 
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'25px', marginBottom:'25px' }}>
-            <div style={{ backgroundColor:'#0b1329', padding:'25px', borderRadius:'16px', border:'1px solid #1e293b' }}>
-              <h3 style={{ marginTop:0, color:'#38bdf8' }}>🚀 Deploy New Game</h3>
-              <form onSubmit={handleSubmitGame}>
+            {/* ADD / EDIT GAME */}
+            <div style={{ backgroundColor:'#0b1329', padding:'25px', borderRadius:'16px', border:`1px solid ${editingGame?'#f59e0b':'#1e293b'}` }}>
+              <h3 style={{ marginTop:0, color: editingGame?'#f59e0b':'#38bdf8' }}>
+                {editingGame ? '✏️ Edit Game' : '🚀 Deploy New Game'}
+              </h3>
+
+              {editingGame && (
+                <div style={{ backgroundColor:'rgba(245,158,11,0.1)', padding:'10px', borderRadius:'8px', marginBottom:'12px', fontSize:'13px', color:'#f59e0b', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                  <span>✏️ Editing: <strong>{editingGame.title}</strong></span>
+                  <button onClick={cancelEdit} style={{ background:'transparent', border:'none', color:'#ef4444', cursor:'pointer', fontWeight:'bold', fontSize:'16px' }}>✕</button>
+                </div>
+              )}
+
+              <form onSubmit={editingGame ? handleEditGame : handleSubmitGame}>
                 <div style={{ marginBottom:'12px' }}>
                   <label style={labelStyle}>Game Title:</label>
                   <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} required style={inputStyle} />
@@ -293,30 +316,42 @@ const handleEditGame = async (e) => {
                   <label style={labelStyle}>Description:</label>
                   <textarea value={description} onChange={(e) => setDescription(e.target.value)} required style={{ ...inputStyle, height:'55px', resize:'none' }} />
                 </div>
-                <div style={{ marginBottom:'12px' }}>
-                  <label style={labelStyle}>Game Image:</label>
-                  <input type="file" accept="image/*" onChange={(e) => { const f=e.target.files[0]; if(f){setImageFile(f);setImagePreview(URL.createObjectURL(f));} }} style={inputStyle} />
-                  {imagePreview && <img src={imagePreview} alt="preview" style={{ width:'100%', height:'100px', objectFit:'cover', borderRadius:'8px', marginTop:'8px' }} />}
-                </div>
-                <div style={{ marginBottom:'12px' }}>
-                  <label style={labelStyle}>Download Type:</label>
-                  <div style={{ display:'flex', gap:'10px' }}>
-                    <button type="button" onClick={() => setUploadMode('link')} style={{ flex:1, padding:'8px', borderRadius:'8px', border:'none', cursor:'pointer', fontWeight:'bold', backgroundColor:uploadMode==='link'?'#38bdf8':'#1e293b', color:uploadMode==='link'?'#070d19':'#94a3b8' }}>🔗 Link</button>
-                    <button type="button" onClick={() => setUploadMode('file')} style={{ flex:1, padding:'8px', borderRadius:'8px', border:'none', cursor:'pointer', fontWeight:'bold', backgroundColor:uploadMode==='file'?'#22c55e':'#1e293b', color:uploadMode==='file'?'#070d19':'#94a3b8' }}>📁 Direct File</button>
-                  </div>
-                </div>
-                {uploadMode==='link' ? (
-                  <>
-                    <div style={{ marginBottom:'12px' }}><label style={labelStyle}>Download Link:</label><input type="url" value={downloadLink} onChange={(e) => setDownloadLink(e.target.value)} required style={inputStyle} /></div>
-                    <div style={{ marginBottom:'12px' }}><label style={labelStyle}>Size (e.g. 2.5 GB):</label><input type="text" value={size} onChange={(e) => setSize(e.target.value)} style={inputStyle} /></div>
-                  </>
-                ) : (
+
+                {!editingGame && (
                   <div style={{ marginBottom:'12px' }}>
-                    <label style={labelStyle}>Game File (max 500MB):</label>
-                    <input type="file" onChange={(e) => setGameFile(e.target.files[0])} required style={inputStyle} />
-                    {gameFile && <p style={{ color:'#22c55e', fontSize:'12px', marginTop:'6px' }}>✅ {gameFile.name} ({(gameFile.size/(1024*1024)).toFixed(1)} MB)</p>}
+                    <label style={labelStyle}>Game Image:</label>
+                    <input type="file" accept="image/*" onChange={(e) => { const f=e.target.files[0]; if(f){setImageFile(f);setImagePreview(URL.createObjectURL(f));} }} style={inputStyle} />
+                    {imagePreview && <img src={imagePreview} alt="preview" style={{ width:'100%', height:'100px', objectFit:'cover', borderRadius:'8px', marginTop:'8px' }} />}
                   </div>
                 )}
+
+                <div style={{ marginBottom:'12px' }}>
+                  <label style={labelStyle}>Size (e.g. 2.5 GB):</label>
+                  <input type="text" value={size} onChange={(e) => setSize(e.target.value)} style={inputStyle} />
+                </div>
+                <div style={{ marginBottom:'12px' }}>
+                  <label style={labelStyle}>Download Link:</label>
+                  <input type="url" value={downloadLink} onChange={(e) => setDownloadLink(e.target.value)} required={!editingGame} style={inputStyle} />
+                </div>
+
+                {!editingGame && (
+                  <div style={{ marginBottom:'12px' }}>
+                    <label style={labelStyle}>Download Type:</label>
+                    <div style={{ display:'flex', gap:'10px' }}>
+                      <button type="button" onClick={() => setUploadMode('link')} style={{ flex:1, padding:'8px', borderRadius:'8px', border:'none', cursor:'pointer', fontWeight:'bold', backgroundColor:uploadMode==='link'?'#38bdf8':'#1e293b', color:uploadMode==='link'?'#070d19':'#94a3b8' }}>🔗 Link</button>
+                      <button type="button" onClick={() => setUploadMode('file')} style={{ flex:1, padding:'8px', borderRadius:'8px', border:'none', cursor:'pointer', fontWeight:'bold', backgroundColor:uploadMode==='file'?'#22c55e':'#1e293b', color:uploadMode==='file'?'#070d19':'#94a3b8' }}>📁 Direct File</button>
+                    </div>
+                  </div>
+                )}
+
+                {!editingGame && uploadMode==='file' && (
+                  <div style={{ marginBottom:'12px' }}>
+                    <label style={labelStyle}>Game File (max 500MB):</label>
+                    <input type="file" onChange={(e) => setGameFile(e.target.files[0])} style={inputStyle} />
+                    {gameFile && <p style={{ color:'#22c55e', fontSize:'12px', marginTop:'6px' }}>✅ {gameFile.name}</p>}
+                  </div>
+                )}
+
                 <div style={{ marginBottom:'16px' }}>
                   <label style={labelStyle}>Category:</label>
                   <select value={category} onChange={(e) => setCategory(e.target.value)} style={inputStyle}>
@@ -325,25 +360,29 @@ const handleEditGame = async (e) => {
                     <option value="Open World 🗺️">Open World 🗺️</option>
                   </select>
                 </div>
-                {uploading && (
+
+                {!editingGame && uploading && (
                   <div style={{ marginBottom:'12px' }}>
                     <div style={{ background:'#1e293b', borderRadius:'8px', height:'10px', overflow:'hidden' }}>
                       <div style={{ background:'#22c55e', height:'100%', width:`${uploadProgress}%`, transition:'0.3s', borderRadius:'8px' }}></div>
                     </div>
-                    <p style={{ color:'#22c55e', fontSize:'12px', marginTop:'4px', textAlign:'center' }}>{uploadProgress}% Uploading...</p>
+                    <p style={{ color:'#22c55e', fontSize:'12px', marginTop:'4px', textAlign:'center' }}>{uploadProgress}%</p>
                   </div>
                 )}
-                <button type="submit" disabled={uploading} style={{ width:'100%', padding:'12px', backgroundColor:uploading?'#1e293b':'#22c55e', color:uploading?'#64748b':'white', border:'none', borderRadius:'8px', cursor:uploading?'not-allowed':'pointer', fontWeight:'bold' }}>
-                  {uploading ? `Uploading... ${uploadProgress}%` : 'Publish Live 🚀'}
+
+                <button type="submit" disabled={!editingGame && uploading}
+                  style={{ width:'100%', padding:'12px', backgroundColor: editingGame?'#f59e0b': uploading?'#1e293b':'#22c55e', color: editingGame?'#070d19': uploading?'#64748b':'white', border:'none', borderRadius:'8px', cursor: (!editingGame&&uploading)?'not-allowed':'pointer', fontWeight:'bold' }}>
+                  {editingGame ? '✅ Save Changes' : uploading ? `Uploading... ${uploadProgress}%` : 'Publish Live 🚀'}
                 </button>
               </form>
             </div>
 
+            {/* MANAGE GAMES */}
             <div style={{ backgroundColor:'#0b1329', padding:'25px', borderRadius:'16px', border:'1px solid #1e293b' }}>
               <h3 style={{ marginTop:0, color:'#ef4444' }}>🗑️ Manage Games ({games.length})</h3>
-              <div style={{ display:'flex', flexDirection:'column', gap:'10px', maxHeight:'450px', overflowY:'auto' }}>
+              <div style={{ display:'flex', flexDirection:'column', gap:'10px', maxHeight:'480px', overflowY:'auto' }}>
                 {games.map((g) => (
-                  <div key={g.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', backgroundColor:'#111b35', padding:'10px', borderRadius:'8px', border:'1px solid #1e293b', gap:'8px' }}>
+                  <div key={g.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', backgroundColor: editingGame?.id===g.id?'rgba(245,158,11,0.1)':'#111b35', padding:'10px', borderRadius:'8px', border:`1px solid ${editingGame?.id===g.id?'#f59e0b':'#1e293b'}`, gap:'8px' }}>
                     <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
                       {g.imageUrl && <img src={g.imageUrl} alt={g.title} style={{ width:'45px', height:'45px', borderRadius:'6px', objectFit:'cover' }} onError={(e) => e.target.style.display='none'} />}
                       <div>
@@ -352,13 +391,17 @@ const handleEditGame = async (e) => {
                         <span style={{ fontSize:'11px', color:'#64748b', marginLeft:'6px' }}>👁️{g.views||0} ⬇️{g.downloads||0}</span>
                       </div>
                     </div>
-                    <button onClick={() => handleDeleteGame(g.id)} style={{ backgroundColor:'rgba(239,68,68,0.1)', border:'1px solid #ef4444', color:'#ef4444', padding:'5px 10px', borderRadius:'6px', cursor:'pointer' }}>❌</button>
+                    <div style={{ display:'flex', gap:'6px' }}>
+                      <button onClick={() => startEdit(g)} style={{ backgroundColor:'rgba(56,189,248,0.1)', border:'1px solid #38bdf8', color:'#38bdf8', padding:'5px 10px', borderRadius:'6px', cursor:'pointer' }}>✏️</button>
+                      <button onClick={() => handleDeleteGame(g.id)} style={{ backgroundColor:'rgba(239,68,68,0.1)', border:'1px solid #ef4444', color:'#ef4444', padding:'5px 10px', borderRadius:'6px', cursor:'pointer' }}>❌</button>
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
           </div>
 
+          {/* NEWS */}
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'25px' }}>
             <div style={{ backgroundColor:'#0b1329', padding:'25px', borderRadius:'16px', border:'1px solid #1e293b' }}>
               <h3 style={{ marginTop:0, color:'#f59e0b' }}>📰 Add News</h3>
